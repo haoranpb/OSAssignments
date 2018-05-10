@@ -1,0 +1,56 @@
+ElevatorSimulator{
+    background-color: white;
+}
+
+#1{background-color: #00897b;}
+#2{background-color: #4e6cef;}
+#3{background-color: #f57c00;}
+#4{background-color: #c2185b;}
+#5{background-color: #8e24aa;}
+
+Bubble{
+    border-radius: 3px;
+    border-bottom: 2px solid black;
+    border-right: 2px solid black;
+}
+
+UpDownButton{background-color: white}
+UpDownButton:hover{background-color: #e0e0e0}
+UpDownButton:pressed{background-color: #9e9e9e}
+
+Bubble#1 BubbleButton{
+    background-color: #80cbc4;
+    border-radius: 7px;
+}
+
+Bubble#2 BubbleButton{
+    background-color: #afbfff;
+    border-radius: 7px;
+}
+
+Bubble#3 BubbleButton{
+    background-color: #ffcc80;
+    border-radius: 7px;
+}
+
+Bubble#4 BubbleButton{
+    background-color: #f48fb1;
+    border-radius: 7px;
+}
+
+Bubble#5 BubbleButton{
+    background-color: #ce93d8;
+    border-radius: 7px;
+}
+
+Bubble#1 BubbleButton:pressed{background-color: #004d40}
+Bubble#2 BubbleButton:pressed{background-color: #2a26b1}
+Bubble#3 BubbleButton:pressed{background-color: #e65100}
+Bubble#4 BubbleButton:pressed{background-color: #880e4f}
+Bubble#5 BubbleButton:pressed{background-color: #4a148c}
+
+Bubble#1 BubbleButton:hover{background-color: #b2dfdb}
+Bubble#2 BubbleButton:hover{background-color: #d0d9ff}
+Bubble#3 BubbleButton:hover{background-color: #ffe0b2}
+Bubble#4 BubbleButton:hover{background-color: #f8bbd0}
+Bubble#5 BubbleButton:hover{background-color: #e1bee7}
