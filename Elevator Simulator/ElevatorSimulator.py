@@ -1,135 +1,449 @@
 """
-Last modified: 2018/5/7
+Last modified: 2018/5/10
 Author: 孙浩然
 Description: Elevator Simulator, Assignment for Operating System
 Issues:
     1. 莫名无法读取相对路径。为防止qss在不同机器上失效，暂时将qss直接写到程序中
+
+三角形qss：
+    background-color: transparent;
+    border: 10px solid white;
+    border-top: 10px solid transparent;
+    border-bottom: 20px solid red;
 """
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPainter, QPen
+from PyQt5.QtCore import Qt, QPropertyAnimation, QPoint, pyqtSignal, QObject, QTimer
+
+
+class Communication(QObject):
+
+    movement = pyqtSignal()
+
+
+class Bubble(QLabel): # 可选楼层的气泡
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.resize(190, 80)
+        self.setAlignment(Qt.AlignCenter)
+        self.button_list = []
+        self.pressed_floor_list = []
+
+        self.initUI()
+
+    def initUI(self):
+        text = QLabel('请选择您要去的楼层：',self)
+        text.move(5, 8)
+        for i in range(10):
+            button = QPushButton(self)
+            button.setText(str(i+1))
+            button.resize(15, 15)
+            button.setStyleSheet('background-color: white')
+            button.move(3 + i*19, 35)
+            button.clicked.connect(self.choose_floor)
+            self.button_list.append(button)
+
+        for i in range(10):
+            button = QPushButton(self)
+            button.setText(str(i+11))
+            button.resize(15, 15)
+            button.setStyleSheet('background-color: white')
+            button.move(3 + i*19, 55)
+            button.clicked.connect(self.choose_floor)
+            self.button_list.append(button)
+
+    
+    def choose_floor(self):
+        source = self.sender()
+        name = source.objectName()
+        if name == 'False': # 无法点击
+            return
+        elif int(source.text()) not in self.pressed_floor_list: # 不可取消
+            self.pressed_floor_list.append(int(source.text()))
+
+
+
+class Elevator(QLabel): # 每个电梯都需要一个表示当前运动状态的变量
+    def __init__(self, parent, number):
+        super().__init__(parent)
+        self.setText('1')
+        self.setAlignment(Qt.AlignCenter)
+        self.num = number # 编号从0开始
+
+        self.to_floor_list = [] # 记录 要去的楼层数 和 到达该楼层后会发生什么 0-到达后不进入等待状态 1-进入上行等待 2-下行等待
+        self.current_floor = 1 # 当前楼层
+        self.status = 0 # 当前运行状态 0-空闲 1-上行 2-下行 3-上行等待 4-下行等待
+
+
+class UpDownButton(QPushButton): # 不需要checkable，不可取消
+
+    def __init__(self, parent, number, n):
+        super().__init__(parent)
+        self.floor_num = number # 记录楼层数
+        self.resize(20, 20)
+        self.up_down = n
+        self.setStyleSheet('background-color: grey')
 
 
 class ElevatorSimulator(QWidget):
 
     def __init__(self):
         super().__init__()
-        #self.setStyleSheet('background-color: white')
-        self.ELEVATOR_LENGTH = 200
+        self.LENGTH = 200
         self.HEIGHT = 33
-        self.FLOOR_LENGTH = 120
+        self.DOWN_TIME = 100
+        self.UP_TIME = 200
+        self.TIME = 1800
+        self.timer = QTimer()
+        self.color_list = ['#40E0D0', '	#B0E2FF', '#FFA500', '#EE82EE', '#AB82FF']
+        self.elevator_list = []
+        self.animation_list = []
+        self.bubble_list = []
+        self.bubble_animation_list = []
 
-        self.elevator_list = [] # 五个电梯
-        self.elevator_button_list = []
-        self.floor_button_list = []
-        self.up_down_list = []
-        self.selected_floor_list = []
+        self.up_list = [] # 用来储存按过向上的按钮的楼层数   只有电梯运行方向发生改变后，才会将等待的按键处理掉
+        self.down_list = [] # 之后分配给相应的电梯
 
         self.initUI()
 
 
     def initUI(self):
 
-        for i in range(0, 5):
-            self.create_elevator(i+1)
-        self.create_elevator_button()
-        self.create_label()
-        self.create_floor_button()
+        self.c = Communication()
+        self.c.movement.connect(self.elevator_move) # 接受上下按钮的信号
+
+        self.create_elevator()
         self.create_up_down_button()
-        self.setGeometry(100, 50 ,1200, 759) # 前两位是生成位置坐标，后两位是生成窗口大小
+        self.create_bubble()
+
+        self.setGeometry(100, 50 ,1200, 768) # 前两位是生成位置坐标，后两位是生成窗口大小
         self.setWindowTitle('Elevator Simulator')
+
         self.show()
 
 
-    def create_elevator(self, number):
-        cell_list = [] # 每个电梯的20层
-        for i in range(0, 20):
-            cell = QLabel(str(20 - i) + '层', self)
-            cell.resize(self.ELEVATOR_LENGTH, self.HEIGHT)
-            cell.setAlignment(Qt.AlignCenter) # 居中
-            cell.setStyleSheet('background-color:white;font-size:15px') # UI待完善
-            cell.move((number - 1) * self.ELEVATOR_LENGTH, i * self.HEIGHT)
-            cell_list.append(cell)
-        self.elevator_list.append(cell_list)
+    def create_bubble(self):
+        for i in range(5):
+            bubble = Bubble(self)
+            bubble.setStyleSheet("QWidget { border-radius: 7px; background-color: %s }" % self.color_list[i])
+            bubble.move(i * self.LENGTH + 5,768) # 675
+            self.bubble_list.append(bubble)
+
+            animation1 = QPropertyAnimation(bubble, b'pos')
+            animation2 = QPropertyAnimation(bubble, b'pos')
+            animation1.setDuration(self.UP_TIME)
+            animation2.setDuration(self.DOWN_TIME)
+            animation1.setEndValue(QPoint(i * self.LENGTH + 5, 675)) # up
+            animation2.setEndValue(QPoint(i * self.LENGTH + 5, 768)) # down
+            animation_set = [animation1, animation2]
+            self.bubble_animation_list.append(animation_set)
 
     
-    def create_elevator_button(self):
-        for i in range(0, 5):
-            elevator_button = QPushButton('电梯' + str(i + 1), self) # UI待完善
-            elevator_button.setCheckable(True)
-            elevator_button.resize(self.ELEVATOR_LENGTH + 15, self.HEIGHT + 10)
-            elevator_button.move(i * self.ELEVATOR_LENGTH - 6, 20 * self.HEIGHT - 3)
+    def bubble_animation(self, n): # 传入电梯编号
+        if self.elevator_list[n].status == 3: # 该向上了
+            for i in range(20):
+                if (i + 1) <= self.elevator_list[n].current_floor:
+                    self.bubble_list[n].button_list[i].setObjectName('False') #obj name
+                else:
+                    self.bubble_list[n].button_list[i].setObjectName('True')
+        else: # 该向下了
+            for i in range(20):
+                if (i + 1) >= self.elevator_list[n].current_floor:
+                    self.bubble_list[n].button_list[i].setObjectName('False')
+                else:
+                    self.bubble_list[n].button_list[i].setObjectName('True')
 
-            elevator_button.clicked.connect(self.select_elevator) # 连接按下后的触发事件
-            if i == 0: # 默认第一个按钮被按下
-                elevator_button.click()
-                self.selected_elevator = elevator_button # 标记被按下的按钮
-            self.elevator_button_list.append(elevator_button)
-
-
-    def create_label(self): # 创建那个不会发生任何变化的按钮
-        button = QLabel('上下按钮', self)
-        button.resize(self.ELEVATOR_LENGTH, self.HEIGHT)
-        button.setAlignment(Qt.AlignCenter)
-        button.setStyleSheet('background-color:grey') # UI待完善
-        button.move(5 * self.ELEVATOR_LENGTH, 20 * self.HEIGHT)
+        self.bubble_animation_list[n][0].start()
 
 
-    def create_floor_button(self): # 创建楼层按钮
-        for i in range(0, 10): # UI待完善
-            floor_button = QPushButton(str(i + 1), self)
-            floor_button.setCheckable(True)
-            floor_button.resize(self.ELEVATOR_LENGTH + 5, self.HEIGHT + 12)
-            floor_button.move(i * self.FLOOR_LENGTH - 10, 21 * self.HEIGHT -5)
+    def bubble_down(self):
+        for i in range(5):
+            self.bubble_animation_list[i][1].start()
+        self.timer.singleShot(self.DOWN_TIME - 10, self.down_finished)
+        
 
-            floor_button.clicked.connect(self.select_floor)
-            self.floor_button_list.append(floor_button)
+    def down_finished(self): # 我可以设置永远是bubble_animation最后结束，然后发送下一次运动信号
+        is_stop = True
+        for i in range(5): # 需要顺便检查电梯按钮按下情况
+            for floor in self.bubble_list[i].pressed_floor_list:
+                if ([floor, 0] in self.elevator_list[i].to_floor_list) or ([floor, 1] in self.elevator_list[i].to_floor_list) or ([floor, 2] in self.elevator_list[i].to_floor_list):
+                    continue
+                else:
+                    self.elevator_list[i].to_floor_list.append([floor, 0])
 
-        for i in range(0, 10):
-            floor_button = QPushButton(str(i + 11), self)
-            floor_button.setCheckable(True)
-            floor_button.resize(self.ELEVATOR_LENGTH + 5, self.HEIGHT + 13)
-            floor_button.move(i * self.FLOOR_LENGTH - 10, 22 * self.HEIGHT - 5)
+            self.bubble_list[i].pressed_floor_list = []
+            self.elevator_list[i].to_floor_list.sort() # 排序
 
-            floor_button.clicked.connect(self.select_floor)
-            self.floor_button_list.append(floor_button)
+            if len(self.elevator_list[i].to_floor_list) != 0:
+                is_stop = False
+
+        if len(self.up_list) != 0 or len(self.down_list) != 0:
+            is_stop = False
+        
+        for i in range(5):
+            if self.elevator_list[i].status == 0: # 状态不需要更改
+                continue
+            elif self.elevator_list[i].status == 1:
+                if len(self.elevator_list[i].to_floor_list) == 0:
+                    self.elevator_list[i].status = 0
+            elif self.elevator_list[i].status == 2:
+                if len(self.elevator_list[i].to_floor_list) == 0:
+                    self.elevator_list[i].status = 0
+            elif self.elevator_list[i].status == 3:
+                if len(self.elevator_list[i].to_floor_list) == 0:
+                    self.elevator_list[i].status = 0
+                else:
+                    self.elevator_list[i].status = 1
+                    j_mark = -1
+                    self.up_list.sort()
+                    for j in range(len(self.up_list)):
+                        if self.up_list[j] >= self.elevator_list[i].current_floor:
+                            if j_mark == -1:
+                                j_mark = j
+                            self.elevator_list[i].append([self.up_list[j], 1])
+                    if j_mark != -1:
+                        self.up_list = self.up_list[0:j_mark]
+                        self.elevator_list[i].sort()
+            elif self.elevator_list[i].status == 4:
+                if len(self.elevator_list[i].to_floor_list) == 0:
+                    self.elevator_list[i].status = 0
+                else:
+                    self.elevator_list[i].status = 2
+                    j_mark = -1
+                    self.down_list.sort()
+                    for j in range(len(self.down_list)):
+                        if self.down_list[j] <= self.elevator_list[i].current_floor:
+                            j_mark = j
+                            self.elevator_list[i].append([self.down_list[j], 2])
+                    if j_mark != -1: # 发生了if
+                        self.down_list = self.down_list[j_mark+1:]
+                        self.elevator_list[i].sort()
+            if self.elevator_list[i].status == 0:
+                if len(self.up_list) != 0:
+                    self.up_list.sort()
+                    if self.up_list[-1] < self.elevator_list[i].current_floor:
+                        self.elevator_list[i].to_floor_list.append([self.up_list.pop(), 1])
+                    else:
+                        j_mark = -1
+                        for j in range(len(self.up_list)):
+                            if self.up_list[j] >= self.elevator_list[i].current_floor:
+                                if j_mark == -1:
+                                    j_mark = j
+                                self.elevator_list[i].to_floor_list.append([self.up_list[j], 1])
+                        self.elevator_list[i].to_floor_list.sort()
+                        self.up_list = self.up_list[0:j_mark]
+                if len(self.down_list) != 0 and len(self.elevator_list[i].to_floor_list) == 0: # 没分给
+                    self.down_list.sort()
+                    if self.down_list[0] > self.elevator_list[i].current_floor:
+                        self.elevator_list[i].to_floor_list.append([self.down_list.pop(0), 2])
+                    else:
+                        j_mark = -1
+                        for j in range(len(self.down_list)):
+                            if self.down_list[j] < self.elevator_list[i].current_floor:
+                                j_mark = j
+                                self.elevator_list[i].to_floor_list.append([self.down_list[j], 2])
+                        self.down_list = self.down_list[j_mark+1:]
+                        self.elevator_list[i].to_floor_list.sort()
+
+        # 在这里处理所有电梯的状态变化
+        if not is_stop: # 是否应该在这里判断
+            self.c.movement.emit() # 发送运动信号
 
 
-    def create_up_down_button(self):
-        for i in range(0, 20):
-            up_down_set = []
-            up_button = QPushButton(self)
-            up_button.setCheckable(True)
-            up_button.resize(20, 20)
-            up_button.setStyleSheet('background-color: grey') # 三角形最后再变吧
-            up_button.move(5* self.ELEVATOR_LENGTH + 60, self.HEIGHT * i +10)
-            up_down_set.append(up_button)
+    def elevator_move(self): # 电梯移动 每次一层
+        for i in range(5):
+            if len(self.elevator_list[i].to_floor_list) == 0: # 没有要去的地方，持续空闲状态
+                continue
+            if self.elevator_list[i].status == 0 and self.elevator_list[i].to_floor_list[0][0] == self.elevator_list[i].current_floor: # len=1 
+                if self.elevator_list[i].to_floor_list[0][1] == 1:
+                    self.elevator_list[i].status = 3 # 如果有按钮被按下，这个周期结束时状态应该变为1，没有为0
+                    self.elevator_list[i].to_floor_list.pop()
+                    self.bubble_animation(i)
+                elif self.elevator_list[i].to_floor_list[0][1] == 2:
+                    self.elevator_list[i].status = 4
+                    self.elevator_list[i].to_floor_list.pop()
+                    self.bubble_animation(i)
 
-            down_button = QPushButton(self)
-            down_button.setCheckable(True)
-            down_button.resize(20, 20)
-            down_button.setStyleSheet('background-color: grey') # 三角形最后再变吧
-            down_button.move(5 * self.ELEVATOR_LENGTH + 120, self.HEIGHT * i +10)
-            up_down_set.append(down_button)
-            self.up_down_list.append(up_down_set)
+            elif self.elevator_list[i].status == 1 and self.elevator_list[i].to_floor_list[0][0] == self.elevator_list[i].current_floor:
+                if self.elevator_list[i].to_floor_list[0][1] == 0:
+                    self.elevator_list[i].to_floor_list.pop(0)
+                elif self.elevator_list[i].to_floor_list[0][1] == 1:
+                    self.elevator_list[i].status = 3 # 这个也已去掉，后面判断是否大于2，来决定是否继续执行
+                    self.elevator_list[i].to_floor_list.pop(0)
+                    self.bubble_animation(i)
+                elif self.elevator_list[i].to_floor_list[0][1] == 2: # len == 1
+                    self.elevator_list[i].status = 4
+                    self.elevator_list[i].to_floor_list.pop(0)
+                    self.bubble_animation(i)
 
-    
-    def select_elevator(self): # 电梯移动
+            elif self.elevator_list[i].status == 2 and self.elevator_list[i].to_floor_list[-1][0] == self.elevator_list[i].current_floor:
+                if self.elevator_list[i].to_floor_list[-1][1] == 0: # 是否需要判断len() == 1???
+                    self.elevator_list[i].to_floor_list.pop()
+                elif self.elevator_list[i].to_floor_list[-1][1] == 1: # len == 1
+                    self.elevator_list[i].status = 3
+                    self.elevator_list[i].to_floor_list.pop()
+                    self.bubble_animation(i)
+                elif self.elevator_list[i].to_floor_list[-1][1] == 2:
+                    self.elevator_list[i].status = 4
+                    self.elevator_list[i].to_floor_list.pop()
+                    self.bubble_animation(i)
+
+            if len(self.elevator_list[i].to_floor_list) == 0 or self.elevator_list[i].status > 2: # 前面再次清空了，或处于等待装填
+                continue
+            # 前面必须把电梯停在某个楼层处理好，下面的判断语句
+            if self.elevator_list[i].to_floor_list[0][0] < self.elevator_list[i].current_floor: # 下行
+                self.elevator_list[i].status = 2
+                self.animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (21-self.elevator_list[i].current_floor)))
+                self.animation_list[i].start()
+            if self.elevator_list[i].to_floor_list[0][0] > self.elevator_list[i].current_floor: # 上行
+                self.elevator_list[i].status = 1
+                self.animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (19-self.elevator_list[i].current_floor)))
+                self.animation_list[i].start()
+
+        self.timer.singleShot(self.TIME + 200, self.bubble_down)
+
+    def ele_animation_finished(self):
         source = self.sender()
-        self.selected_elevator = source # 标记被按下的电梯
-        for elevator_button in self.elevator_button_list: # 一个电梯按下后，其他的需要弹起
-            if elevator_button.isChecked() and elevator_button != source: # source 是 pushButton 类型
-                elevator_button.nextCheckState() # 不能用click，因为再一次点击，所以会把所有的按钮都弹起。需要使用nextCheckState
-    
+        for i in range(5):
+            if self.animation_list[i] == source:
+                if self.elevator_list[i].status == 1:
+                    self.elevator_list[i].current_floor += 1
+                    self.elevator_list[i].setText(str(self.elevator_list[i].current_floor))
+                else:
+                    self.elevator_list[i].current_floor -= 1
+                    self.elevator_list[i].setText(str(self.elevator_list[i].current_floor))
 
-    def select_floor(self):
+    
+    def create_elevator(self):
+        for i in range(5):
+            elevator = Elevator(self, i)
+            elevator.resize(self.LENGTH, self.HEIGHT)
+            elevator.setStyleSheet("QWidget { background-color: %s }" % self.color_list[i]) # qss 解决
+            elevator.move(i * self.LENGTH, self.HEIGHT * 19)
+            self.elevator_list.append(elevator)
+
+            animation = QPropertyAnimation(elevator, b'pos')
+            animation.setDuration(self.TIME)
+            animation.finished.connect(self.ele_animation_finished)
+
+            self.animation_list.append(animation)
+
+
+    def create_up_down_button(self): # 创建上下按钮，无需记录下来
+        for i in range(20):
+            if i != 0:
+                up_button = UpDownButton(self, 20 - i, 1)
+                up_button.setText('上')
+                up_button.move(5* self.LENGTH + 60, self.HEIGHT * i +10)
+                up_button.clicked.connect(self.up_down_pressed)
+
+            if i !=19:
+                down_button = UpDownButton(self, 20 - i, 2)
+                down_button.setText('下')
+                down_button.move(5 * self.LENGTH + 120, self.HEIGHT * i +10)
+                down_button.clicked.connect(self.up_down_pressed)
+
+
+    def up_down_pressed(self): # 上下按钮 触发函数
         source = self.sender()
-        pass
+        # 判重
+        is_same = False
+        if source.up_down == 1: # 遍历等待队列
+            for tmp in self.up_list:
+                if tmp == source.floor_num:
+                    is_same = True
+        else:
+            for tmp in self.down_list:
+                if tmp == source.floor_num:
+                    is_same = True
+
+        for ele in self.elevator_list: # 遍历电梯
+            if ele.status == source.up_down:
+                for tmp in ele.to_floor_list:
+                    if tmp[0] == source.floor_num and tmp[1] == source.up_down:
+                        is_same = True
+            elif ele.status == (source.up_down + 2) and ele.current_floor == source.floor_num:
+                is_same = True
+        if is_same:
+            return
+
+        is_all_leisure = True
+        min_dist = 20 # 距离按下楼层的距离
+        min_ele = -1
+
+        for ele in self.elevator_list: # 遍历5个电梯
+            if ele.status != 0: # 每个电梯都需要判断，决定了是否发送运动信号
+                is_all_leisure = False
+            if ele.status == 0 : # 空闲的电梯
+                dis = abs(ele.current_floor - source.floor_num)
+                if dis < min_dist:
+                    min_dist = dis
+                    min_ele = ele
+            elif ele.status == 1 and source.up_down == 1: # 向上
+                if ele.current_floor >= source.floor_num:
+                    continue # 这个电梯不行
+
+                avail_mark = True
+                for stop in ele.to_floor_list:
+                    if stop[1] == 2:
+                        avail_mark = False
+                        break
+
+                if avail_mark:
+                    dis = abs(ele.current_floor - source.floor_num)
+                    if dis < min_dist:
+                        min_dist = dis
+                        min_ele = ele
+                
+            elif ele.status == 2 and source.up_down == 2: # 向下
+                if ele.current_floor <= source.floor_num:
+                    continue
+                
+                avail_mark = True
+                for stop in ele.to_floor_list:
+                    if stop[1] == 1:
+                        avail_mark = True
+                        break
+
+                if avail_mark:
+                    dis = abs(ele.current_floor - source.floor_num)
+                    if dis < min_dist:
+                        min_dist = dis
+                        min_ele = ele
+
+        if min_ele == -1: # 暂时无可用电梯，放入等候队列
+            if source.up_down == 1:
+                self.up_list.append(source.floor_num) # 暂时没想好是否需要排序
+            else:
+                self.down_list.append(source.floor_num) # 暂时没想好是否需要排序
+        else: # 有可用
+            min_ele.to_floor_list.append([source.floor_num, source.up_down])
+            min_ele.to_floor_list.sort() # 按楼层排序
+
+        if is_all_leisure: # 只有全部空闲，发送电梯运行信号
+            self.c.movement.emit()
+
+
+    def paintEvent(self, e): # 绘画操作开始
+        qp = QPainter()
+        qp.begin(self)
+        self.draw_line(qp)
+        qp.end()
+
+
+    def draw_line(self, qp): # 电梯绳
+        pen = QPen(Qt.black, 0.5, Qt.SolidLine)
+        pen.setStyle(Qt.CustomDashLine)
+        pen.setDashPattern([4, 20])
+        qp.setPen(pen)
+        for i in range(5):
+            qp.drawLine(100 + i * self.LENGTH, 0, 100 + i * self.LENGTH, 660)
 
 
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    elevator = ElevatorSimulator()
+    elevator_simulator = ElevatorSimulator()
     sys.exit(app.exec_())
