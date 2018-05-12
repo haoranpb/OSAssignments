@@ -2,16 +2,7 @@
 Last modified: 2018/5/10
 Author: 孙浩然
 Description: Elevator Simulator, Assignment for Operating System
-Issues:
-    1. 莫名无法读取相对路径。为防止qss在不同机器上失效，暂时将qss直接写到程序中
-    2. 选择电梯时间过短，犹豫是否要多给一个周期
-    3. 给一些类单独建一个文件夹
-
-三角形qss：
-    background-color: transparent;
-    border: 10px solid white;
-    border-top: 10px solid transparent;
-    border-bottom: 20px solid red;
+先阅读“使用说明”和“设计方案报告”，有助于您理解源代码。
 """
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel
@@ -45,12 +36,10 @@ class Bubble(QLabel): # 可选楼层的气泡
     def initUI(self):
         text = QLabel('请选择您要去的楼层：',self)
         text.move(5, 8)
-        text.setObjectName('text')
         for i in range(10):
             button = BubbleButton(self)
             button.setText(str(i+1))
             button.resize(15, 15)
-            button.setObjectName('button')
             button.move(1 + i*19, 35)
             button.clicked.connect(self.choose_floor)
             self.button_list.append(button)
@@ -59,7 +48,6 @@ class Bubble(QLabel): # 可选楼层的气泡
             button = BubbleButton(self)
             button.setText(str(i+11))
             button.resize(15, 15)
-            button.setObjectName('button')
             button.move(1 + i*19, 55)
             button.clicked.connect(self.choose_floor)
             self.button_list.append(button)
@@ -71,7 +59,6 @@ class Bubble(QLabel): # 可选楼层的气泡
             return
         elif int(source.text()) not in self.pressed_floor_list: # 不可取消
             self.pressed_floor_list.append(int(source.text()))
-
 
 
 class Elevator(QLabel): # 每个电梯都需要一个表示当前运动状态的变量
@@ -104,7 +91,7 @@ class ElevatorSimulator(QWidget):
         self.TIME = 1800
         self.timer = QTimer()
         self.elevator_list = []
-        self.animation_list = []
+        self.elevator_animation_list = []
         self.bubble_list = []
         self.bubble_animation_list = []
 
@@ -118,7 +105,7 @@ class ElevatorSimulator(QWidget):
 
         self.c = Communication()
         self.c.movement.connect(self.elevator_move) # 接受上下按钮的信号
-        self.setWindowIcon(QIcon('./icon.jpeg'))
+        self.setWindowIcon(QIcon('./images/icon.jpeg'))
 
         self.create_elevator()
         self.create_up_down_button()
@@ -135,14 +122,13 @@ class ElevatorSimulator(QWidget):
         style_sheet = ''
         with open('./stylesheet.qss', 'r') as f:
             for line in f.readlines():
-                style_sheet+=line
+                style_sheet += line
         self.setStyleSheet(style_sheet)
 
 
     def create_bubble(self):
         for i in range(5):
             bubble = Bubble(self)
-            #bubble.setStyleSheet("QWidget { border-radius: 4px; background-color: %s }" % self.color_list[i])
             bubble.move(i * self.LENGTH + 5,768) # 675
             bubble.setObjectName(str(i+1))
             self.bubble_list.append(bubble)
@@ -263,8 +249,7 @@ class ElevatorSimulator(QWidget):
                         self.down_list = self.down_list[j_mark+1:]
                         self.elevator_list[i].to_floor_list.sort()
 
-        # 在这里处理所有电梯的状态变化
-        if not is_stop: # 是否应该在这里判断
+        if not is_stop:
             self.c.movement.emit() # 发送运动信号
 
 
@@ -311,19 +296,20 @@ class ElevatorSimulator(QWidget):
             # 前面必须把电梯停在某个楼层处理好，下面的判断语句
             if self.elevator_list[i].to_floor_list[0][0] < self.elevator_list[i].current_floor: # 下行
                 self.elevator_list[i].status = 2
-                self.animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (21-self.elevator_list[i].current_floor)))
-                self.animation_list[i].start()
+                self.elevator_animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (21-self.elevator_list[i].current_floor)))
+                self.elevator_animation_list[i].start()
             if self.elevator_list[i].to_floor_list[0][0] > self.elevator_list[i].current_floor: # 上行
                 self.elevator_list[i].status = 1
-                self.animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (19-self.elevator_list[i].current_floor)))
-                self.animation_list[i].start()
+                self.elevator_animation_list[i].setEndValue(QPoint(i * self.LENGTH, self.HEIGHT * (19-self.elevator_list[i].current_floor)))
+                self.elevator_animation_list[i].start()
 
         self.timer.singleShot(self.TIME + 200, self.bubble_down)
+
 
     def ele_animation_finished(self):
         source = self.sender()
         for i in range(5):
-            if self.animation_list[i] == source:
+            if self.elevator_animation_list[i] == source:
                 if self.elevator_list[i].status == 1:
                     self.elevator_list[i].current_floor += 1
                     self.elevator_list[i].setText(str(self.elevator_list[i].current_floor))
@@ -345,7 +331,7 @@ class ElevatorSimulator(QWidget):
             animation.setDuration(self.TIME)
             animation.finished.connect(self.ele_animation_finished)
 
-            self.animation_list.append(animation)
+            self.elevator_animation_list.append(animation)
 
 
     def create_up_down_button(self): # 创建上下按钮，无需记录下来
