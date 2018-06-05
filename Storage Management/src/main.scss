@@ -1,0 +1,34 @@
+#storage{
+    background-color: rgb(173, 173, 173);
+    height: 640px;
+    width: 230px;
+    position: absolute;
+    left: 500px;
+    top: 20px;
+    border-left: 5px solid black;
+}
+
+button{
+    height: 20px;
+    width: 150px;
+    background-color: white;
+    border: 30% solid black;
+    border-radius: 3px;
+    position: absolute;
+    left: 300px;
+    top: 50px;
+    outline: none;
+}
+button:active{
+    background-color: rgb(226, 226, 226);
+}
+#ff{ top: 85px;}
+#bf{ top: 120px;}
+
+label{
+    position: absolute;
+    left: 330px;
+    top: 600px;
+    color: purple;
+    font: 2.3em sans-serif;
+}
