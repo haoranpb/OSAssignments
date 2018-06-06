@@ -3,8 +3,8 @@
   height: 640px;
   width: 230px;
   position: absolute;
-  left: 500px;
-  top: 20px;
+  left: 510px;
+  top: 30px;
   border-left: 5px solid black;
 }
 
@@ -38,6 +38,14 @@ label {
   top: 600px;
   color: purple;
   font: 2.3em sans-serif;
+}
+
+.block {
+  background-color: transparent;
+  position: absolute;
+  top: 0px;
+  width: 230px;
+  height: 640px;
 }
 
 /*# sourceMappingURL=main.css.map */
