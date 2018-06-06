@@ -175,6 +175,14 @@ function deleteBlock(obj){
                     obj.remove();
                 });
             }
+            else{
+                let block = $("<div class=\"block\"></div>");
+                block.css({"top": obj.css("top"), "height": obj.css("height")});
+                obj.before(block);
+                obj.slideUp("fast", function(){
+                    obj.remove();
+                });
+            }
         }
     }
     else{
