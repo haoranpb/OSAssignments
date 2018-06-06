@@ -41,7 +41,6 @@ $("button#ff").click(function(){ // func for first fit
         for(let i = 0; i < colorList.length; i++){
             if(colorList[i].avail == false){
                 blockColor = colorList[i].color;
-                console.log(blockColor);
                 colorList[i].avail = true;
                 break;
             }
@@ -63,19 +62,54 @@ $("button#ff").click(function(){ // func for first fit
 })
 
 $("button#bf").click(function(){ // func for best fit
-    let blockColor = '';
-    for(let i = 0; i < colorList.length; i++){
-        if(colorList[i].avail == false){
-            blockColor = colorList[i].color;
-            colorList[i].avail = true;
-            break;
-        }
+    if(step>10){
+        alert("The sequnence is empty. Please click Clear button to restart!");
+        return;
     }
+    // find the next task
+    let task = sequence[step].task;
+    let size = sequence[step].size;
+    let type = sequence[step].type;
+    step++;
 
+    if(type == 0){ // add task
+        let blockColor = ''; // find the available color
+        for(let i = 0; i < colorList.length; i++){
+            if(colorList[i].avail == false){
+                blockColor = colorList[i].color;
+                colorList[i].avail = true;
+                break;
+            }
+        }
+        let bestObj; // find the best fit
+        let first = true;
+        $("div.block").each(function(){
+            if($(this).css("background-color") == "rgba(0, 0, 0, 0)"){ // if this block is empty
+                let tempHeight = parseInt($(this).css("height"));
+                if(tempHeight >= size){
+                    if(first == true){
+                        first = false;
+                        bestObj = this;
+                    }
+                    else{
+                        if(tempHeight < parseInt($(bestObj).css("height"))){
+                            bestObj = this;
+                        }
+                    }
+                }
+            }
+        })
+        newBlock(task, $(bestObj).css("top"), size, blockColor, bestObj);
+        adjustEmptyBlock(size, $(bestObj).css("top"), $(bestObj).css("height"), bestObj);
+    }
+    else{ // delete task
+        let selecter = "." + task.toString();
+        deleteBlock($(selecter));
+    }
 })
 
 $("button#clear").click(function(){
-
+    window.location.reload(); 
 })
 
 
@@ -148,6 +182,14 @@ function deleteBlock(obj){
             if(nextObj.css("background-color") == "rgba(0, 0, 0, 0)"){ // if next obj is empty
                 const newHeight = parseInt(obj.css("height")) + parseInt(nextObj.css("height"));
                 nextObj.css({"top": obj.css("top"), "height": newHeight + "px"});
+                obj.slideUp("fast", function(){
+                    obj.remove();
+                });
+            }
+            else{
+                let block = $("<div class=\"block\"></div>");
+                block.css({"top": obj.css("top"), "height": obj.css("height")});
+                obj.before(block);
                 obj.slideUp("fast", function(){
                     obj.remove();
                 });
