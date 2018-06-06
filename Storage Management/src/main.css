@@ -48,13 +48,17 @@ label {
   height: 640px;
 }
 
-.dashboard {
+div#dashboard {
   position: absolute;
   left: 830px;
   top: 100px;
   width: 350px;
   height: 500px;
   background-color: transparent;
+}
+div#dashboard p {
+  color: #a7a7a7;
+  font: 1em;
 }
 
 /*# sourceMappingURL=main.css.map */

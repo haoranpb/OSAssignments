@@ -41,11 +41,15 @@ label{
     height: 640px;
 }
 
-.dashboard{
+div#dashboard{
     position: absolute;
     left: 830px;
     top: 100px;
     width: 350px;
     height: 500px;
     background-color: transparent;
+    p{
+        color: rgb(150, 150, 150);
+        font: 0.9em;
+    }
 }

@@ -35,6 +35,14 @@ $("button#ff").click(function(){ // func for first fit
     let size = sequence[step].size;
     let type = sequence[step].type;
     step++;
+    let typeText;
+    if(type == 0){
+        typeText = "申请";
+    }
+    else{
+        typeText = "释放";
+    }
+    let txt = $("<p></p>").text("作业" + task + typeText + size + "K空间");
 
     if(type == 0){ // add task
         let blockColor = ''; // find the available color
@@ -45,6 +53,8 @@ $("button#ff").click(function(){ // func for first fit
                 break;
             }
         }
+        txt.css("color", blockColor);
+        $("#dashboard").append(txt);
         $("div.block").each(function(){
             if($(this).css("background-color") == "rgba(0, 0, 0, 0)"){ // if this block is empty
                 if(parseInt($(this).css("height")) >= size){ // if this block is enough for the task
@@ -57,6 +67,7 @@ $("button#ff").click(function(){ // func for first fit
     }
     else{ // delete task
         let selecter = "." + task.toString();
+        $("#dashboard").append(txt);
         deleteBlock($(selecter));
     }
 })
@@ -71,6 +82,14 @@ $("button#bf").click(function(){ // func for best fit
     let size = sequence[step].size;
     let type = sequence[step].type;
     step++;
+    let typeText;
+    if(type == 0){
+        typeText = "申请";
+    }
+    else{
+        typeText = "释放";
+    }
+    let txt = $("<p></p>").text("作业" + task + typeText + size + "K空间");
 
     if(type == 0){ // add task
         let blockColor = ''; // find the available color
@@ -81,6 +100,8 @@ $("button#bf").click(function(){ // func for best fit
                 break;
             }
         }
+        txt.css("color", blockColor);
+        $("#dashboard").append(txt);
         let bestObj; // find the best fit
         let first = true;
         $("div.block").each(function(){
@@ -104,12 +125,13 @@ $("button#bf").click(function(){ // func for best fit
     }
     else{ // delete task
         let selecter = "." + task.toString();
+        $("#dashboard").append(txt);
         deleteBlock($(selecter));
     }
 })
 
 $("button#clear").click(function(){
-    window.location.reload(); 
+    window.location.reload();
 })
 
 
