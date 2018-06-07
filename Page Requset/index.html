@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Page Request</title>
+        <!-- import jQuery from CDN -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <!-- import css -->
+        <link rel="stylesheet" type="text/css" href="./src/main.css" />
+    </head>
+    <body>
+        <div id="usr-panel">
+            <div id="info">
+                <p class="title">模拟信息</p>
+                <p class="info">内存块数：4</p>
+                <p class="info">总指令数：320</p>
+                <p class="info">每个页面存放的指令数：10</p>
+                <p class="info">置换算法：FIFO</p>
+            </div>
+            <div id="result">
+                <p class="title">结果信息</p>
+                <p class="info">缺页次数：0</p>
+            </div>
+        </div>
+        <button id="start">Start</button>
+        <div id="dashboard">
+        </div>
+    </body>
+    <script src="src/main.js"></script>
+</html>

@@ -1,0 +1,41 @@
+html, body{
+    font-family:"PingFang SC","Microsoft YaHei";
+}
+#dashboard{
+    position: absolute;
+    left: 700px;
+    top: 10px;
+    height: 750px;
+    width: 350px;
+    overflow: scroll;
+    text-shadow:1px 1px 1px rgba(0,0,0,0.25);
+    
+}
+div.txt{
+    font-size: 13px;
+    height: 20px;
+}
+
+#start{
+    position: absolute;
+    left: 400px;
+    top: 450px;
+    height: 20px;
+    width: 100px;
+    background-color: white;
+}
+
+.title{
+    color: #3BA4DF;
+    font-size: 18px;
+}
+.info{
+    color: black;
+    font-size: 14px;
+}
+
+#usr-panel{
+    position: absolute;
+    left: 400px;
+    top: 150px;
+}
