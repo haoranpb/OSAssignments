@@ -13,7 +13,7 @@ import sys, os
 from PyQt5.QtWidgets import (QApplication, QWidget, QInputDialog, QFileDialog, 
         QLabel, QPushButton, QMessageBox, QMenu, QAction)
 from PyQt5 import QtCore
-import math
+import math, shutil
 
 
 class Block():
@@ -72,7 +72,7 @@ class FileManagement(QWidget):
         createFileBtn.move(135, 40)
         createDirBtn.move(230, 40)
         formatBtn.move(480, 40)
-        quitBtn.move(500, 300)
+        quitBtn.move(600, 300)
 
 
         self.loadQss()
@@ -87,13 +87,27 @@ class FileManagement(QWidget):
         
         # check wether the dir is empty before init!!
         if os.path.exists(self.PATH + '/.FAT_BitMap_list'):
-            pass # restore everything from disk
+            with open(self.PATH + '/.FAT_BitMap_list', 'r') as f:
+                for line in f.readlines():
+                    if len(line) == 1: # skip the last \n
+                        continue
+                    tmp1, tmp2 = line.split(' ')
+                    block = Block()
+                    block.next = int(tmp1)
+                    block.str = tmp2
+                    self.FAT_Bitmap_list.append(block)
+
+            self.ROOT = Node('Root' ,None)
+            self.pointer = self.ROOT
+            self.restoreFileTree(self.ROOT, self.PATH)
+            self.refreshUI()
+
         else: # init
             for i in range(0, 128):
                 block = Block()
                 self.FAT_Bitmap_list.append(block) # init FAT_Bitmap_list
-            self.ROOT = Node('Root' ,None)
-            self.pointer = self.ROOT
+                self.ROOT = Node('Root' ,None)
+                self.pointer = self.ROOT
 
         # init Menu
         self.popMenu = QMenu(self)
@@ -103,6 +117,20 @@ class FileManagement(QWidget):
         deletFileAction.triggered.connect(self.deleteFileAction)
         self.popMenu.addAction(openFileAction)
         self.popMenu.addAction(deletFileAction)
+
+    def restoreFileTree(self, dirNode, path):
+        with open(os.path.join(path, '.index'), 'r') as f:
+            for line in f.readlines():
+                tmp1, tmp2 = line.split()
+                dirNode.fileList.append((tmp1, int(tmp2)))
+        
+        for file in os.listdir(path):
+            if (file == '.index') or (file == '.FAT_BitMap_list') or ('.txt' in file):
+                continue
+            else:
+                newNode = Node(file, dirNode)
+                dirNode.son.append(newNode)
+                self.restoreFileTree(newNode, os.path.join(path, file))
 
 
     def loadQss(self):
@@ -126,14 +154,14 @@ class FileManagement(QWidget):
 
     def createTextFileAction(self):
         fileName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new file name:')
-        
+
         if ok and str(fileName).isalnum():
             mark = True
             for file in self.pointer.fileList: # look for duplicate name
                 if file[0] == str(fileName):
                     mark = False
                     break
-  
+
             # check for available space!!
             start = -1
             for i in range(len(self.FAT_Bitmap_list)):
@@ -314,9 +342,15 @@ class FileManagement(QWidget):
 
     def writeIntoDisk(self):
         # write everything into disk when quiting this system, consider to rm -rf everything and write everything again
+        for file in os.listdir(self.PATH):
+                if '.' in file:
+                    os.remove(os.path.join(self.PATH, file))
+                else:
+                    shutil.rmtree(os.path.join(self.PATH, file))
+
         with open(self.PATH + '/.FAT_BitMap_list', 'w') as f:
             for block in self.FAT_Bitmap_list:
-                f.write(str(block.next) + '\n')
+                f.write(str(block.next) + ' ' + block.str + '\n')
         self.writeEveryDir(self.ROOT, self.PATH)
         sys.exit()
 
