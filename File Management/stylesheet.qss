@@ -1,0 +1,4 @@
+QLabel{background-color: white;}
+QPushButton#current{
+    text-align: left;
+}
