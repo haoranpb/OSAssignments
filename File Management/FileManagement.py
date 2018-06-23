@@ -48,9 +48,20 @@ class FileManagement(QWidget):
     def initUI(self):
 
         infoWindow = QLabel(self)
+        pathWindow = QLabel('PATH:', self)
+        storageWindow = QLabel('Free: 2018', self)
+
+        infoWindow.setObjectName('info')
+        pathWindow.setObjectName('path')
+        storageWindow.setObjectName('storage')
 
         infoWindow.setFixedSize(550, 300)
+        pathWindow.setFixedWidth(300)
+        storageWindow.setFixedSize(150, 150)
+
         infoWindow.move(25, 80)
+        pathWindow.move(50, 55)
+        storageWindow.move(590, 100)
 
         # button func list
         formatBtn = QPushButton('格式化', self)
@@ -67,12 +78,13 @@ class FileManagement(QWidget):
         quitBtn.clicked.connect(self.writeIntoDisk)
         selectFileBtn.clicked.connect(self.selectFile)
 
-        backBtn.move(30, 40)
-        createFileBtn.move(135, 40)
-        createDirBtn.move(230, 40)
-        formatBtn.move(480, 40)
-        selectFileBtn.move(600, 250)
-        quitBtn.move(600, 300)
+        backBtn.move(50, 15)
+        createFileBtn.move(180, 15)
+        createDirBtn.move(320, 15)
+        formatBtn.move(450, 15)
+        selectFileBtn.move(600, 290)
+        quitBtn.move(600, 330)
+        quitBtn.setFixedSize(120, 32)
 
 
         self.loadQss()
@@ -377,10 +389,6 @@ class FileManagement(QWidget):
                     f.write(str(block.next) + ' ' + block.str + '\n')
             self.writeEveryDir(self.ROOT, self.PATH)
             sys.exit()
-
-    def closeEvent(self, event): # rewrite close event
-        self.writeIntoDisk()
-        event.accept()
 
     def writeEveryDir(self, dirNode, path):
         with open(os.path.join(path, '.index'), 'w') as f:
