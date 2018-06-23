@@ -1,4 +1,22 @@
-QLabel{background-color: white;}
-QPushButton#current{
+QLabel#info{background-color: white;}
+QLabel#path{
+    font-family: 'Courier New', Helvetica, Arial;
+    font-size: 16px;
+    font-weight: bold;
+}
+QLabel#storage{
+    font-size:30px; 
+    font-weight: bold;
+    color: #A020F0;
+}
+QLabel#infoTitle{
+    font-family: 'Courier New', Helvetica, Arial;
+    background-color: #c4c4c4;
+}
+QLabel#current{
     text-align: left;
+    font-family: 'Courier New', Helvetica, Arial;
+    font-size: 14px;
+    background-color: white;
+    border: none;
 }

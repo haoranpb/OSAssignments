@@ -35,8 +35,8 @@ class FileManagement(QWidget):
         self.ROOT = '' # file tree root
         self.pointer = ''
         self.currentBtn = []
-        self.HEIGHT = 30
-        self.LENGTH = 500
+        self.HEIGHT = 20
+        self.LENGTH = 550
         self.selectBtn = ''
         self.storageRemain = 2048
         self.currentPath = ''
@@ -50,19 +50,22 @@ class FileManagement(QWidget):
 
         infoWindow = QLabel(self)
         self.pathWindow = QLabel('PATH:', self)
-        self.storageWindow = QLabel('Free:\n2018', self)
+        self.storageWindow = QLabel('Free:\n2048', self)
+        infoTitle = QLabel('       文件名      |     文件类型      |     起始块     |      大小', self)
 
         infoWindow.setObjectName('info')
         self.pathWindow.setObjectName('path')
         self.storageWindow.setObjectName('storage')
+        infoTitle.setObjectName('infoTitle')
 
         infoWindow.setFixedSize(550, 300)
         self.pathWindow.setFixedWidth(300)
-        self.storageWindow.setFixedSize(150, 150)
+        infoTitle.setFixedSize(550, 20)
 
         infoWindow.move(25, 80)
-        self.pathWindow.move(50, 55)
-        self.storageWindow.move(590, 100)
+        infoTitle.move(25, 80)
+        self.pathWindow.move(55, 55)
+        self.storageWindow.move(625, 120)
 
         # button func list
         formatBtn = QPushButton('格式化', self)
@@ -105,6 +108,41 @@ class FileManagement(QWidget):
         self.popMenu.addAction(openFileAction)
         self.popMenu.addAction(deletFileAction)
 
+    def refreshUI(self): # every file or Dir is a pushbtn, cause they will response to click event
+
+        # the file or dir to be displayed are sons of the self.pointer and its fileList
+        for btn in self.currentBtn:
+            btn.deleteLater()
+        self.currentBtn.clear()
+
+        self.pathWindow.setText('PATH:' + self.currentPath)
+        self.storageWindow.setText('Free:\n' + str(self.storageRemain))
+
+        count = 1
+        for file in self.pointer.son: # dir
+            name = file.dirName + (18 - len(file.dirName)) * ' ' +'folder'
+            btn = QLabel(name, self)
+            btn.setFixedSize(self.LENGTH, self.HEIGHT)
+            btn.setObjectName('current')
+            btn.move(25, 80 + count * self.HEIGHT)
+            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            btn.customContextMenuRequested.connect(self.showPopMenu)
+            btn.show()
+            self.currentBtn.append(btn)
+            count = count + 1
+
+        for file in self.pointer.fileList:
+            name = str(file[0]) + (18 - len(file[0]))*' ' + 'textFile' + ' '*9 + str(file[1]) + (14 - math.ceil(file[1]/10))*' ' + str(self.getTextFileSize(file[1]))
+            btn = QLabel(name, self)
+            btn.setFixedSize(self.LENGTH, self.HEIGHT)
+            btn.setObjectName('current')
+            btn.move(25, 80 + count * self.HEIGHT)
+            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            btn.customContextMenuRequested.connect(self.showPopMenu)
+            btn.show()
+            self.currentBtn.append(btn)
+            count = count + 1
+
     def selectFile(self):
 
         self.PATH = QFileDialog.getExistingDirectory(self, 'Choose a file for File Management', '/home') # Add README before pop up 
@@ -120,13 +158,13 @@ class FileManagement(QWidget):
                     if len(result)>1:
                         block.next = int(result[0])
                         block.str = result[1]
+                        self.storageRemain -= 16
                     else:
                         block.next = int(result[0])
                         block.str = ''
                     self.FAT_Bitmap_list.append(block)
 
             self.ROOT = Node('Root' ,None)
-            # update self.storageRemain
             self.pointer = self.ROOT
             self.restoreFileTree(self.ROOT, self.PATH)
             self.refreshUI()
@@ -185,7 +223,7 @@ class FileManagement(QWidget):
         else:    
             fileName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new file name:')
 
-            if ok and str(fileName).isalnum():
+            if ok and str(fileName).isalnum() and len(fileName) <= 10:
                 mark = True
                 for file in self.pointer.fileList: # look for duplicate name
                     if file[0] == str(fileName):
@@ -210,6 +248,8 @@ class FileManagement(QWidget):
             else: # Please input correct file name
                 if '.txt' in str(fileName):
                     QMessageBox.information(self, 'Warning', '文件名中无需含有.txt！')
+                elif len(fileName) > 10:
+                    QMessageBox.information(self, 'Warning', '文件名长度应在10个字符以下！')
                 else:
                     QMessageBox.information(self, 'Warning', '请您输入正确的文本文件名！')
 
@@ -219,7 +259,7 @@ class FileManagement(QWidget):
         else:
             dirName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new directory name:')
 
-            if ok and str(dirName).isalnum():
+            if ok and str(dirName).isalnum() and len(dirName) <= 10:
                 mark = True
                 for child in self.pointer.son: # check for duplicate name
                     if child.dirName == str(dirName):
@@ -233,52 +273,19 @@ class FileManagement(QWidget):
                 else:
                     QMessageBox.information(self, 'Warning', '该文件名已存在！') # directory already exits
             else:
-                QMessageBox.information(self, 'Warning', '请您输入正确的文件名！') # Please input correct file name
-
-    def refreshUI(self): # every file or Dir is a pushbtn, cause they will response to click event
-        # the file or dir to be displayed are sons of the self.pointer and its fileList
-        for btn in self.currentBtn:
-            btn.deleteLater()
-        self.currentBtn.clear()
-
-        self.pathWindow.setText(self.currentPath)
-        self.storageWindow.setText('Free"\n' + str(self.storageRemain))
-
-        count = 1
-        for file in self.pointer.son: # dir
-            btn = QPushButton(file.dirName, self)
-            btn.setFixedSize(self.LENGTH, self.HEIGHT)
-            btn.setCheckable(True)
-            btn.setObjectName('current')
-            btn.move(30, 40 + count * self.HEIGHT)
-            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-            btn.customContextMenuRequested.connect(self.showPopMenu)
-            btn.show()
-            self.currentBtn.append(btn)
-            count = count + 1
-
-        for file in self.pointer.fileList:
-            btn = QPushButton(file[0], self)
-            btn.setFixedSize(self.LENGTH, self.HEIGHT)
-            btn.setCheckable(True)
-            btn.setObjectName('current')
-            btn.move(30, 40 + count * self.HEIGHT)
-            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-            btn.customContextMenuRequested.connect(self.showPopMenu)
-            btn.show()
-            self.currentBtn.append(btn)
-            count = count + 1
+                if len(dirName) > 10:
+                    QMessageBox.information(self, 'Warning', '文件名长度应在10个字符以下！')
+                else:
+                    QMessageBox.information(self, 'Warning', '请您输入正确的文件名！') # Please input correct file name
 
     def openFileAction(self): # Action in popMenu self.selectBtn
-        # self.selectBtn.setStyleSheet('background-color: black')
         if self.ROOT == '':
             QMessageBox.information(self, 'Warning', '请先选择工作目录！')
         else:
             if '.txt' in self.selectBtn.text(): # file
-                # pop up a text edit dialog && divide into block
                 selectedFile = ''
                 for file in self.pointer.fileList:
-                    if file[0] == self.selectBtn.text(): # remember to parse filename
+                    if file[0] == self.selectBtn.text()[0:11].replace(' ', ''): # remember to parse filename
                         selectedFile = file
                         break
                 originText = self.getText(selectedFile) # get whole text from blocks
@@ -311,11 +318,26 @@ class FileManagement(QWidget):
                     pass
             else: # dir
                 for child in self.pointer.son:
-                    if child.dirName == self.selectBtn.text(): # text need to add slice !!!
+                    if child.dirName == self.selectBtn.text()[0:11].replace(' ', ''): # text need to add slice !!!
                         self.pointer = child
                         self.currentPath = self.currentPath + '/' + child.dirName
                         self.refreshUI()
                         break
+
+    def getTextFileSize(self, startBlockNum):
+        size = 0
+        blockPointer = self.FAT_Bitmap_list[startBlockNum]
+        while True:
+            if blockPointer.next == -1:
+                if len(blockPointer.str) == 0: # empty
+                    break
+                else:
+                    size += 16
+                    break
+            else:
+                size += 16
+                blockPointer = self.FAT_Bitmap_list[blockPointer.next]
+        return size
 
     def releaseTextFile(self, startBlockNum):
         blockPointer = self.FAT_Bitmap_list[startBlockNum]
@@ -341,7 +363,7 @@ class FileManagement(QWidget):
             if '.txt' in self.selectBtn.text():
                 selectedFile = ''
                 for file in self.pointer.fileList:
-                    if file[0] == self.selectBtn.text(): # remember to parse filename
+                    if file[0] == self.selectBtn.text()[0:11].replace(' ', ''): # remember to parse filename
                         selectedFile = file
                         break
                 self.releaseTextFile(selectedFile[1])
@@ -349,7 +371,7 @@ class FileManagement(QWidget):
                 self.refreshUI()
             else:
                 for child in self.pointer.son:
-                    if child.dirName == self.selectBtn.text(): # text need to add slice !!!
+                    if child.dirName == self.selectBtn.text()[0:11].replace(' ', ''): # text need to add slice !!!
                         # have to delete all files in that dir
                         self.deleteDir(child)
                         self.refreshUI()
