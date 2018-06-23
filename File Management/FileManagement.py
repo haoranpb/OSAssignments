@@ -39,6 +39,7 @@ class FileManagement(QWidget):
         self.LENGTH = 500
         self.selectBtn = ''
         self.storageRemain = 2048
+        self.currentPath = ''
 
 
         self.initUI()
@@ -48,20 +49,20 @@ class FileManagement(QWidget):
     def initUI(self):
 
         infoWindow = QLabel(self)
-        pathWindow = QLabel('PATH:', self)
-        storageWindow = QLabel('Free: 2018', self)
+        self.pathWindow = QLabel('PATH:', self)
+        self.storageWindow = QLabel('Free:\n2018', self)
 
         infoWindow.setObjectName('info')
-        pathWindow.setObjectName('path')
-        storageWindow.setObjectName('storage')
+        self.pathWindow.setObjectName('path')
+        self.storageWindow.setObjectName('storage')
 
         infoWindow.setFixedSize(550, 300)
-        pathWindow.setFixedWidth(300)
-        storageWindow.setFixedSize(150, 150)
+        self.pathWindow.setFixedWidth(300)
+        self.storageWindow.setFixedSize(150, 150)
 
         infoWindow.move(25, 80)
-        pathWindow.move(50, 55)
-        storageWindow.move(590, 100)
+        self.pathWindow.move(50, 55)
+        self.storageWindow.move(590, 100)
 
         # button func list
         formatBtn = QPushButton('格式化', self)
@@ -125,6 +126,7 @@ class FileManagement(QWidget):
                     self.FAT_Bitmap_list.append(block)
 
             self.ROOT = Node('Root' ,None)
+            # update self.storageRemain
             self.pointer = self.ROOT
             self.restoreFileTree(self.ROOT, self.PATH)
             self.refreshUI()
@@ -149,7 +151,6 @@ class FileManagement(QWidget):
                 dirNode.son.append(newNode)
                 self.restoreFileTree(newNode, os.path.join(path, file))
 
-
     def loadQss(self):
         style_sheet = ''
         with open('./stylesheet.qss', 'r') as f:
@@ -163,6 +164,7 @@ class FileManagement(QWidget):
         else:
             self.pointer = self.ROOT
             self.deleteDir(self.ROOT)
+            self.currentPath = ''
             self.refreshUI()
 
     def backAction(self): # go to its father node
@@ -173,6 +175,8 @@ class FileManagement(QWidget):
                 QMessageBox.information(self, 'Warning', '您已经处于根目录了！')
             else:
                 self.pointer = self.pointer.father
+                pos = self.currentPath.rfind('/')
+                self.currentPath = self.currentPath[0:pos]
                 self.refreshUI()
 
     def createTextFileAction(self):
@@ -231,12 +235,14 @@ class FileManagement(QWidget):
             else:
                 QMessageBox.information(self, 'Warning', '请您输入正确的文件名！') # Please input correct file name
 
-
     def refreshUI(self): # every file or Dir is a pushbtn, cause they will response to click event
         # the file or dir to be displayed are sons of the self.pointer and its fileList
         for btn in self.currentBtn:
             btn.deleteLater()
         self.currentBtn.clear()
+
+        self.pathWindow.setText(self.currentPath)
+        self.storageWindow.setText('Free"\n' + str(self.storageRemain))
 
         count = 1
         for file in self.pointer.son: # dir
@@ -262,7 +268,6 @@ class FileManagement(QWidget):
             btn.show()
             self.currentBtn.append(btn)
             count = count + 1
-
 
     def openFileAction(self): # Action in popMenu self.selectBtn
         # self.selectBtn.setStyleSheet('background-color: black')
@@ -301,12 +306,14 @@ class FileManagement(QWidget):
                                     blockPointer.next = j
                                     blockPointer = self.FAT_Bitmap_list[j]
                                     break
+                        self.refreshUI()
                 else:
                     pass
             else: # dir
                 for child in self.pointer.son:
                     if child.dirName == self.selectBtn.text(): # text need to add slice !!!
                         self.pointer = child
+                        self.currentPath = self.currentPath + '/' + child.dirName
                         self.refreshUI()
                         break
 
@@ -326,7 +333,6 @@ class FileManagement(QWidget):
                 tmp = blockPointer.next
                 blockPointer.next = -1
                 blockPointer = self.FAT_Bitmap_list[tmp]
-
 
     def deleteFileAction(self): # Action in popMenu
         if self.ROOT == '':
@@ -348,7 +354,6 @@ class FileManagement(QWidget):
                         self.deleteDir(child)
                         self.refreshUI()
                         break
-
 
     def showPopMenu(self, pos):
         source = self.sender()
