@@ -4,9 +4,6 @@ Last Modified: 2018/6/20
 Author: 孙浩然
 Description: File Management, Assignment for Operating System
 Storage: Total 2048 Bytes = 128 Blocks * 16 Bytes, Every char for 1 Bytes
-
-To-do:
-1. check wether file and Dir names are available
 """
 
 import sys, os
@@ -61,17 +58,20 @@ class FileManagement(QWidget):
         createFileBtn = QPushButton('创建文本文件', self)
         createDirBtn = QPushButton('创建子目录', self)
         quitBtn = QPushButton('保存并退出', self)
+        selectFileBtn = QPushButton('选择工作目录', self)
 
         formatBtn.clicked.connect(self.formatAction)
         backBtn.clicked.connect(self.backAction)
         createFileBtn.clicked.connect(self.createTextFileAction)
         createDirBtn.clicked.connect(self.createDirAction)
         quitBtn.clicked.connect(self.writeIntoDisk)
+        selectFileBtn.clicked.connect(self.selectFile)
 
         backBtn.move(30, 40)
         createFileBtn.move(135, 40)
         createDirBtn.move(230, 40)
         formatBtn.move(480, 40)
+        selectFileBtn.move(600, 250)
         quitBtn.move(600, 300)
 
 
@@ -82,32 +82,6 @@ class FileManagement(QWidget):
         self.show()
 
     def initLogic(self):
-        
-        self.PATH = QFileDialog.getExistingDirectory(self, 'Choose a file for File Management', '/home') # Add README before pop up 
-        
-        # check wether the dir is empty before init!!
-        if os.path.exists(self.PATH + '/.FAT_BitMap_list'):
-            with open(self.PATH + '/.FAT_BitMap_list', 'r') as f:
-                for line in f.readlines():
-                    if len(line) == 1: # skip the last \n
-                        continue
-                    tmp1, tmp2 = line.split(' ')
-                    block = Block()
-                    block.next = int(tmp1)
-                    block.str = tmp2
-                    self.FAT_Bitmap_list.append(block)
-
-            self.ROOT = Node('Root' ,None)
-            self.pointer = self.ROOT
-            self.restoreFileTree(self.ROOT, self.PATH)
-            self.refreshUI()
-
-        else: # init
-            for i in range(0, 128):
-                block = Block()
-                self.FAT_Bitmap_list.append(block) # init FAT_Bitmap_list
-                self.ROOT = Node('Root' ,None)
-                self.pointer = self.ROOT
 
         # init Menu
         self.popMenu = QMenu(self)
@@ -117,6 +91,37 @@ class FileManagement(QWidget):
         deletFileAction.triggered.connect(self.deleteFileAction)
         self.popMenu.addAction(openFileAction)
         self.popMenu.addAction(deletFileAction)
+
+    def selectFile(self):
+
+        self.PATH = QFileDialog.getExistingDirectory(self, 'Choose a file for File Management', '/home') # Add README before pop up 
+        
+        # check wether the dir is empty before init!!
+        if os.path.exists(self.PATH + '/.FAT_BitMap_list'):
+            with open(self.PATH + '/.FAT_BitMap_list', 'r') as f:
+                for line in f.readlines():
+                    if len(line) == 1: # skip the last \n
+                        continue
+                    result = line.split()
+                    block = Block()
+                    if len(result)>1:
+                        block.next = int(result[0])
+                        block.str = result[1]
+                    else:
+                        block.next = int(result[0])
+                        block.str = ''
+                    self.FAT_Bitmap_list.append(block)
+
+            self.ROOT = Node('Root' ,None)
+            self.pointer = self.ROOT
+            self.restoreFileTree(self.ROOT, self.PATH)
+            self.refreshUI()
+        else: # init
+            for i in range(0, 128):
+                block = Block()
+                self.FAT_Bitmap_list.append(block) # init FAT_Bitmap_list
+                self.ROOT = Node('Root' ,None)
+                self.pointer = self.ROOT
 
     def restoreFileTree(self, dirNode, path):
         with open(os.path.join(path, '.index'), 'r') as f:
@@ -141,64 +146,78 @@ class FileManagement(QWidget):
         self.setStyleSheet(style_sheet)
 
     def formatAction(self): # delete everything
-        self.pointer = self.ROOT
-        self.deleteDir(self.ROOT)
-        self.refreshUI()
-
-    def backAction(self): # go to its father node
-        if self.pointer.father == None:
-            pass # this is the root
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
         else:
-            self.pointer = self.pointer.father
+            self.pointer = self.ROOT
+            self.deleteDir(self.ROOT)
             self.refreshUI()
 
+    def backAction(self): # go to its father node
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
+        else:
+            if self.pointer.father == None:
+                QMessageBox.information(self, 'Warning', '您已经处于根目录了！')
+            else:
+                self.pointer = self.pointer.father
+                self.refreshUI()
+
     def createTextFileAction(self):
-        fileName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new file name:')
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
+        else:    
+            fileName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new file name:')
 
-        if ok and str(fileName).isalnum():
-            mark = True
-            for file in self.pointer.fileList: # look for duplicate name
-                if file[0] == str(fileName):
-                    mark = False
-                    break
+            if ok and str(fileName).isalnum():
+                mark = True
+                for file in self.pointer.fileList: # look for duplicate name
+                    if file[0] == str(fileName):
+                        mark = False
+                        break
 
-            # check for available space!!
-            start = -1
-            for i in range(len(self.FAT_Bitmap_list)):
-                if len(self.FAT_Bitmap_list[i].str) == 0:
-                    start = i
-                    break
+                # check for available space!!
+                start = -1
+                for i in range(len(self.FAT_Bitmap_list)):
+                    if len(self.FAT_Bitmap_list[i].str) == 0:
+                        start = i
+                        break
 
-            if mark:
-                if start == -1: # limited space
-                    pass
+                if mark:
+                    if start == -1: # limited space
+                        QMessageBox.information(self, 'Warning', '储存空间不足！')
+                    else:
+                        self.pointer.fileList.append((str(fileName) + '.txt', start))
+                        self.refreshUI()
+                else: # already exists
+                    QMessageBox.information(self, 'Warning', '该文本文件名已存在！')
+            else: # Please input correct file name
+                if '.txt' in str(fileName):
+                    QMessageBox.information(self, 'Warning', '文件名中无需含有.txt！')
                 else:
-                    self.pointer.fileList.append((str(fileName) + '.txt', start))
-                    self.refreshUI()
-            else: # already exists
-                pass
-        else: # Please input correct file name
-            pass
+                    QMessageBox.information(self, 'Warning', '请您输入正确的文本文件名！')
 
     def createDirAction(self):
-        dirName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new directory name:')
-
-        if ok and str(dirName).isalnum():
-            mark = True
-            for child in self.pointer.son: # check for duplicate name
-                if child.dirName == str(dirName):
-                    mark = False
-                    break
-
-            if mark:
-                newNode = Node(str(dirName), self.pointer)
-                self.pointer.son.append(newNode)
-                print(dirName)
-                self.refreshUI() # refresh UI
-            else:
-                pass # directory already exits
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
         else:
-            pass # Please input correct file name
+            dirName, ok = QInputDialog.getText(self, 'Input Dialog', 'Please input new directory name:')
+
+            if ok and str(dirName).isalnum():
+                mark = True
+                for child in self.pointer.son: # check for duplicate name
+                    if child.dirName == str(dirName):
+                        mark = False
+                        break
+
+                if mark:
+                    newNode = Node(str(dirName), self.pointer)
+                    self.pointer.son.append(newNode)
+                    self.refreshUI() # refresh UI
+                else:
+                    QMessageBox.information(self, 'Warning', '该文件名已存在！') # directory already exits
+            else:
+                QMessageBox.information(self, 'Warning', '请您输入正确的文件名！') # Please input correct file name
 
 
     def refreshUI(self): # every file or Dir is a pushbtn, cause they will response to click event
@@ -235,50 +254,49 @@ class FileManagement(QWidget):
 
     def openFileAction(self): # Action in popMenu self.selectBtn
         # self.selectBtn.setStyleSheet('background-color: black')
-        if '.txt' in self.selectBtn.text(): # file
-            # pop up a text edit dialog && divide into block
-            selectedFile = ''
-            for file in self.pointer.fileList:
-                if file[0] == self.selectBtn.text(): # remember to parse filename
-                    selectedFile = file
-                    break
-            originText = self.getText(selectedFile) # get whole text from blocks
-            self.releaseTextFile(selectedFile[1])
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
+        else:
+            if '.txt' in self.selectBtn.text(): # file
+                # pop up a text edit dialog && divide into block
+                selectedFile = ''
+                for file in self.pointer.fileList:
+                    if file[0] == self.selectBtn.text(): # remember to parse filename
+                        selectedFile = file
+                        break
+                originText = self.getText(selectedFile) # get whole text from blocks
+                self.releaseTextFile(selectedFile[1])
 
-            text, ok = QInputDialog.getMultiLineText(self, '文本文件输入框', '请输入内容', originText)
-            if ok:
-                length = len(text)
-                if len(text) % 16 ==0:
-                    pass
-                else:
-                    length = math.floor(length/16 + 1) * 16
+                text, ok = QInputDialog.getMultiLineText(self, '文本文件输入框', '请输入内容', originText)
+                if ok:
+                    length = len(text)
+                    if len(text) % 16 ==0:
+                        pass
+                    else:
+                        length = math.floor(length/16 + 1) * 16
 
-                if length > self.storageRemain:
-                    pass # 
-                else:
-                    self.storageRemain -= length
-                    blockPointer = self.FAT_Bitmap_list[selectedFile[1]]
-                    for i in range(round(length/16)):
-                        blockPointer.str = text[i*16:(i+1)*16]
-                        if i == (round(length/16)-1):
-                            break
-                        for j in range(len(self.FAT_Bitmap_list)):
-                            if len(self.FAT_Bitmap_list[j].str) == 0: # empty
-                                blockPointer.next = j
-                                blockPointer = self.FAT_Bitmap_list[j]
+                    if length > self.storageRemain:
+                        pass # 
+                    else:
+                        self.storageRemain -= length
+                        blockPointer = self.FAT_Bitmap_list[selectedFile[1]]
+                        for i in range(round(length/16)):
+                            blockPointer.str = text[i*16:(i+1)*16]
+                            if i == (round(length/16)-1):
                                 break
-                # print(self.storageRemain)
-                # for block in self.FAT_Bitmap_list:
-                #     if len(block.str) != 0:
-                #         print(block.str)
-            else:
-                pass
-        else: # dir
-            for child in self.pointer.son:
-                if child.dirName == self.selectBtn.text(): # text need to add slice !!!
-                    self.pointer = child
-                    self.refreshUI()
-                    break
+                            for j in range(len(self.FAT_Bitmap_list)):
+                                if len(self.FAT_Bitmap_list[j].str) == 0: # empty
+                                    blockPointer.next = j
+                                    blockPointer = self.FAT_Bitmap_list[j]
+                                    break
+                else:
+                    pass
+            else: # dir
+                for child in self.pointer.son:
+                    if child.dirName == self.selectBtn.text(): # text need to add slice !!!
+                        self.pointer = child
+                        self.refreshUI()
+                        break
 
     def releaseTextFile(self, startBlockNum):
         blockPointer = self.FAT_Bitmap_list[startBlockNum]
@@ -299,23 +317,25 @@ class FileManagement(QWidget):
 
 
     def deleteFileAction(self): # Action in popMenu
-        if '.txt' in self.selectBtn.text():
-            selectedFile = ''
-            for file in self.pointer.fileList:
-                if file[0] == self.selectBtn.text(): # remember to parse filename
-                    selectedFile = file
-                    break
-            self.releaseTextFile(selectedFile[1])
-            self.pointer.fileList.remove(selectedFile)
-            self.refreshUI()
-            # print(self.storageRemain)
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
         else:
-            for child in self.pointer.son:
-                if child.dirName == self.selectBtn.text(): # text need to add slice !!!
-                    # have to delete all files in that dir
-                    self.deleteDir(child)
-                    self.refreshUI()
-                    break
+            if '.txt' in self.selectBtn.text():
+                selectedFile = ''
+                for file in self.pointer.fileList:
+                    if file[0] == self.selectBtn.text(): # remember to parse filename
+                        selectedFile = file
+                        break
+                self.releaseTextFile(selectedFile[1])
+                self.pointer.fileList.remove(selectedFile)
+                self.refreshUI()
+            else:
+                for child in self.pointer.son:
+                    if child.dirName == self.selectBtn.text(): # text need to add slice !!!
+                        # have to delete all files in that dir
+                        self.deleteDir(child)
+                        self.refreshUI()
+                        break
 
 
     def showPopMenu(self, pos):
@@ -336,39 +356,47 @@ class FileManagement(QWidget):
     def deleteDir(self, dirNode):
         for file in dirNode.fileList:
             self.releaseTextFile(file[1])
-        dirNode.clear()
+        dirNode.fileList.clear()
         for child in dirNode.son:
             self.deleteDir(child)
+        dirNode.son.clear()
 
     def writeIntoDisk(self):
         # write everything into disk when quiting this system, consider to rm -rf everything and write everything again
-        for file in os.listdir(self.PATH):
-                if '.' in file:
-                    os.remove(os.path.join(self.PATH, file))
-                else:
-                    shutil.rmtree(os.path.join(self.PATH, file))
+        if self.ROOT == '':
+            QMessageBox.information(self, 'Warning', '请先选择工作目录！')
+        else:
+            for file in os.listdir(self.PATH):
+                    if '.' in file:
+                        os.remove(os.path.join(self.PATH, file))
+                    else:
+                        shutil.rmtree(os.path.join(self.PATH, file))
 
-        with open(self.PATH + '/.FAT_BitMap_list', 'w') as f:
-            for block in self.FAT_Bitmap_list:
-                f.write(str(block.next) + ' ' + block.str + '\n')
-        self.writeEveryDir(self.ROOT, self.PATH)
-        sys.exit()
+            with open(os.path.join(self.PATH, '.FAT_BitMap_list'), 'w') as f:
+                for block in self.FAT_Bitmap_list:
+                    f.write(str(block.next) + ' ' + block.str + '\n')
+            self.writeEveryDir(self.ROOT, self.PATH)
+            sys.exit()
+
+    def closeEvent(self, event): # rewrite close event
+        self.writeIntoDisk()
+        event.accept()
 
     def writeEveryDir(self, dirNode, path):
-        with open(path + '/.index', 'w') as f:
+        with open(os.path.join(path, '.index'), 'w') as f:
             for file in dirNode.fileList:
                 f.write(file[0] + ' ' + str(file[1]) + '\n')
 
         for file in dirNode.fileList:
             text = self.getText(file)
-            with open(path + '/' + file[0], 'w') as f:
+            with open(os.path.join(path, file[0]), 'w') as f:
                 f.write(text)
 
         for child in dirNode.son:
-            os.mkdir(path + '/' + child.dirName)
-            self.writeEveryDir(child, path + '/' + child.dirName)
+            os.mkdir(os.path.join(path, child.dirName))
+            self.writeEveryDir(child, os.path.join(path, child.dirName))
         
-        
+
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
